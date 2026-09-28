@@ -1,0 +1,4 @@
+# Copy to .env (git-ignored) and fill in real values. Never commit .env.
+# Not needed today: the Advisor runs locally in the browser. If you add an AI backend,
+# keep the key on the server, never in index.html.
+# ANTHROPIC_API_KEY=

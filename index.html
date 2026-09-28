@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance Predictor</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7fb;--card:#fff;--tx:#1b1f2a;--mut:#667085;--bd:#e3e6ee;--ok:#0b7a43;--okb:#e6f6ee;--no:#b42318;--nob:#fdecea;--ac:#3b5bdb}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141a;--card:#1b1e27;--tx:#eceef4;--mut:#98a2b3;--bd:#2b2f3b;--ok:#4ade80;--okb:#12301f;--no:#f87171;--nob:#3a1a1a;--ac:#8ea2ff}}
+:root[data-theme="dark"]{--bg:#12141a;--card:#1b1e27;--tx:#eceef4;--mut:#98a2b3;--bd:#2b2f3b;--ok:#4ade80;--okb:#12301f;--no:#f87171;--nob:#3a1a1a;--ac:#8ea2ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:18px 14px 40px}
+h1{font-size:22px;margin:0 0 2px}h2{font-size:16px;margin:22px 0 8px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:13px}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.f label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+input{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.k{border:1px solid var(--bd);border-radius:10px;padding:10px;background:var(--card)}
+.k.ok{border-left:4px solid var(--ok)}.k.no{border-left:4px solid var(--no)}
+.k .n{font-size:24px;font-weight:650}.k .m{font-size:12px;color:var(--mut)}
+.ok .n{color:var(--ok)}.no .n{color:var(--no)}
+.adv{margin:0;padding-left:18px}.adv li{margin:4px 0}
+svg{width:100%;height:auto;display:block}
+.ax{stroke:var(--bd)}.t{fill:var(--mut);font-size:11px}
+.ln{fill:none;stroke:var(--ac);stroke-width:2.5}
+.l75{stroke:var(--no);stroke-dasharray:4 3}.l90{stroke:var(--ok);stroke-dasharray:4 3}
+.dot{fill:var(--ac)}
+.note{font-size:12px;color:var(--mut);margin-top:24px}
+</style></head><body><main>
+<h1>Attendance Predictor</h1>
+<p class="sub">Enter your numbers, then slide the planned leaves and OD to see where you land.</p>
+<div class="box"><div class="f">
+<label>Classes held so far<input id="c" type="number" min="0" value="60"></label>
+<label>Classes attended<input id="a" type="number" min="0" value="50"></label>
+<label>Classes remaining in semester<input id="r" type="number" min="0" value="40"></label>
+<label>Planned leaves (absent)<input id="l" type="number" min="0" value="5"></label>
+<label>Planned OD (counted present)<input id="o" type="number" min="0" value="2"></label>
+</div></div>
+<h2>Where you stand</h2><div class="g" id="cards"></div>
+<h2>Projection by number of leaves</h2><div class="box"><div id="chart"></div></div>
+<h2>Advisor</h2><div class="box"><ul class="adv" id="adv"></ul></div>
+<p class="note">OD periods are treated as present. Check your college's exact rules before relying on these numbers.</p>
+</main><script>
+const $=id=>document.getElementById(id),n=id=>Math.max(0,Math.floor(+$(id).value)||0);
+const f=x=>x.toFixed(1)+"%";
+function card(t,v,m,ok){return `<div class="k ${ok?"ok":"no"}"><div class="m">${t}</div><div class="n">${v}</div><div class="m">${m}</div></div>`}
+function run(){
+const C=n("c"),A=Math.min(n("a"),C),R=n("r"),L=Math.min(n("l"),R),O=Math.min(n("o"),R-L),T=C+R;
+if(!T){return}
+const cur=C?100*A/C:0,pr=100*(A+R-L)/T;
+const need=t=>Math.ceil(t*T-A-1e-9),miss=t=>R-Math.max(0,need(t));
+const m75=miss(.75),m90=miss(.9);
+const x75=Math.max(0,3*C-4*A),x90=Math.max(0,9*C-10*A);
+$("cards").innerHTML=
+card("Current attendance",f(cur),`${A} of ${C} classes`,cur>=75)+
+card("Projected at semester end",f(pr),`${L} leaves, ${O} OD planned`,pr>=75)+
+card("Leaves left for 75%",m75>=0?m75:"Not reachable",m75>=0?"maximum future absences":"even full attendance falls short",m75>=0)+
+card("Leaves left for 90%",m90>=0?m90:"Not reachable",m90>=0?"maximum future absences":"even full attendance falls short",m90>=0);
+// chart
+const W=600,H=230,p=36,lo=Math.max(0,Math.min(60,Math.floor(100*A/T/10)*10)),y=v=>H-p-(v-lo)/(100-lo)*(H-2*p),x=i=>p+(R?i/R:0)*(W-2*p);
+let pts=[];for(let i=0;i<=R;i++)pts.push(`${x(i).toFixed(1)},${y(100*(A+R-i)/T).toFixed(1)}`);
+let g="";for(let v=lo;v<=100;v+=10)g+=`<line class="ax" x1="${p}" x2="${W-p}" y1="${y(v)}" y2="${y(v)}"/><text class="t" x="4" y="${y(v)+4}">${v}%</text>`;
+$("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected attendance versus leaves taken">${g}
+<line class="l75" x1="${p}" x2="${W-p}" y1="${y(75)}" y2="${y(75)}"/><line class="l90" x1="${p}" x2="${W-p}" y1="${y(90)}" y2="${y(90)}"/>
+<polyline class="ln" points="${pts.join(" ")}"/><circle class="dot" r="5" cx="${x(L)}" cy="${y(pr)}"/>
+<text class="t" x="${p}" y="${H-10}">0 leaves</text><text class="t" x="${W-p}" y="${H-10}" text-anchor="end">${R} leaves</text></svg>`;
+// advisor
+const a=[];
+if(cur<75&&C)a.push(`You are below 75% now. Attending the next <b>${x75}</b> classes in a row brings you back to 75%.`);
+else if(C)a.push(`You are above 75% now, with a cushion of <b>${Math.max(0,m75)}</b> future leaves before the limit.`);
+if(cur<90&&C)a.push(`For the 90% target you would need <b>${x90}</b> consecutive classes from today.`);
+if(m75<0)a.push(`75% is out of reach this semester even with perfect attendance. Talk to your coordinator about condonation options.`);
+else if(L>m75)a.push(`<b>Your planned ${L} leaves are too many.</b> You would finish at ${f(pr)}, below 75%. Cut at least ${L-m75} leaves or convert them to OD if eligible.`);
+else a.push(`Your plan is safe for 75%: finishing at <b>${f(pr)}</b> with ${m75-L} spare leaves.`);
+if(m90>=0&&L>m90)a.push(`This plan misses 90% by ${L-m90} leaves.`);
+if(O)a.push(`${O} OD period${O>1?"s":""} counted as present. Get the OD letters approved early so they are recorded.`);
+$("adv").innerHTML=a.map(s=>`<li>${s}</li>`).join("");
+}
+document.querySelectorAll("input").forEach(i=>i.addEventListener("input",run));run();
+</script></body></html>
